@@ -24,10 +24,11 @@ jobs:
           gradle-version: '8.14'
 
       - name: Build plugin
+        working-directory: HeavenlyTrident
         run: gradle build --no-daemon --stacktrace
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
         with:
           name: HeavenlyTrident
-          path: build/libs/*.jar
+          path: HeavenlyTrident/build/libs/*.jar
