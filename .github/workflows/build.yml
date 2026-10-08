@@ -6,7 +6,7 @@ on:
 
 jobs:
   build:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
 
     steps:
       - name: Checkout
@@ -18,10 +18,13 @@ jobs:
           java-version: '21'
           distribution: 'temurin'
 
-      - name: Build with Gradle
-        uses: gradle/gradle-build-action@v3
+      - name: Install Gradle
+        uses: gradle/actions/setup-gradle@v4
         with:
-          arguments: build
+          gradle-version: '8.14'
+
+      - name: Build plugin
+        run: gradle build --no-daemon --stacktrace
 
       - name: Upload JAR
         uses: actions/upload-artifact@v4
