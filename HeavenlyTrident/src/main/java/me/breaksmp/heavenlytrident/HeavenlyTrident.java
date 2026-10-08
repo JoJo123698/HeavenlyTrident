@@ -376,18 +376,17 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                                         .normalize();
 
                         /*
-                         * ВАЖНО:
+                         * ИСПРАВЛЕНИЕ:
                          *
-                         * Модель вытянута по X.
-                         *
-                         * Поэтому поворачиваем
-                         * ось X в сторону полёта.
+                         * Теперь считаем, что
+                         * модель трезубца направлена
+                         * по оси Y.
                          */
 
                         org.joml.Vector3f from =
                                 new org.joml.Vector3f(
-                                        1,
                                         0,
+                                        1,
                                         0
                                 );
 
