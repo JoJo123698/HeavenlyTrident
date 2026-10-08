@@ -6,17 +6,22 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
+import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Trident;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
+import org.bukkit.event.entity.ProjectileLaunchEvent;
 import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.util.Transformation;
+import org.bukkit.util.Vector;
 
 public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
@@ -107,11 +112,9 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
     }
 
     /*
-     * КРАФТ НЕБЕСНОГО ТРЕЗУБЦА
-     *
-     * При крафте показываем уведомление:
-     * "Это Бог?"
+     * ДОСТИЖЕНИЕ
      */
+
     @EventHandler
     public void onCraft(CraftItemEvent event) {
 
@@ -148,11 +151,133 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
     }
 
     /*
-     * ПОПАДАНИЕ НЕБЕСНЫМ ТРЕЗУБЦОМ
+     * ЗАПУСК ТРЕЗУБЦА
      *
-     * Обычный ванильный полёт трезубца.
-     * Кастомного ItemDisplay-полёта больше нет.
+     * Обычный ванильный трезубец продолжает
+     * лететь самостоятельно.
+     *
+     * Мы только создаём визуальную модель,
+     * которая следует за ним.
      */
+
+    @EventHandler
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+
+        if (!(event.getEntity() instanceof Trident trident)) {
+            return;
+        }
+
+        if (!(trident.getShooter() instanceof Player player)) {
+            return;
+        }
+
+        if (!isHeavenlyTrident(trident.getItemStack())) {
+            return;
+        }
+
+        createFlyingModel(trident, player);
+    }
+
+    private void createFlyingModel(
+            Trident trident,
+            Player player
+    ) {
+
+        World world = trident.getWorld();
+
+        ItemDisplay display =
+                (ItemDisplay) world.spawnEntity(
+                        trident.getLocation(),
+                        org.bukkit.entity.EntityType.ITEM_DISPLAY
+                );
+
+        display.setItemStack(createHeavenlyTrident());
+
+        display.setBillboard(
+                org.bukkit.entity.Display.Billboard.FIXED
+        );
+
+        display.setInterpolationDuration(1);
+        display.setTeleportDuration(1);
+
+        Transformation transformation =
+                display.getTransformation();
+
+        transformation.getScale().set(
+                0.75f,
+                0.75f,
+                0.75f
+        );
+
+        display.setTransformation(transformation);
+
+        Bukkit.getScheduler().runTaskTimer(
+                this,
+                task -> {
+
+                    if (!trident.isValid()) {
+                        display.remove();
+                        task.cancel();
+                        return;
+                    }
+
+                    if (!display.isValid()) {
+                        task.cancel();
+                        return;
+                    }
+
+                    Location location =
+                            trident.getLocation();
+
+                    display.teleport(location);
+
+                    /*
+                     * Поворачиваем модель по направлению
+                     * настоящего трезубца.
+                     */
+
+                    Vector velocity =
+                            trident.getVelocity();
+
+                    if (velocity.lengthSquared() > 0.001) {
+
+                        Vector direction =
+                                velocity.clone().normalize();
+
+                        float yaw =
+                                (float) Math.toDegrees(
+                                        Math.atan2(
+                                                -direction.getX(),
+                                                direction.getZ()
+                                        )
+                                );
+
+                        float pitch =
+                                (float) Math.toDegrees(
+                                        Math.asin(
+                                                -direction.getY()
+                                        )
+                                );
+
+                        Location rotation =
+                                location.clone();
+
+                        rotation.setYaw(yaw);
+                        rotation.setPitch(pitch);
+
+                        display.teleport(rotation);
+                    }
+
+                },
+                1L,
+                1L
+        );
+    }
+
+    /*
+     * УРОН + МОЛНИЯ
+     */
+
     @EventHandler
     public void onDamage(EntityDamageByEntityEvent event) {
 
@@ -160,9 +285,7 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
             return;
         }
 
-        ItemStack item = trident.getItemStack();
-
-        if (!isHeavenlyTrident(item)) {
+        if (!isHeavenlyTrident(trident.getItemStack())) {
             return;
         }
 
@@ -173,18 +296,19 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         // 15 урона
         event.setDamage(15.0);
 
-        Location location = event.getEntity().getLocation();
+        Location location =
+                event.getEntity().getLocation();
 
-        World world = location.getWorld();
+        World world =
+                location.getWorld();
 
         if (world == null) {
             return;
         }
 
-        // Молния без дополнительного урона от самой молнии
+        // Визуальная молния
         world.strikeLightningEffect(location);
 
-        // Звук попадания
         world.playSound(
                 location,
                 Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
