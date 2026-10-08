@@ -4,28 +4,19 @@ import org.bukkit.Bukkit;
 import org.bukkit.Location;
 import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
-import org.bukkit.Particle;
 import org.bukkit.Sound;
 import org.bukkit.World;
-import org.bukkit.entity.Entity;
-import org.bukkit.entity.EntityType;
-import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
-import org.bukkit.entity.Projectile;
+import org.bukkit.entity.Trident;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
-import org.bukkit.event.entity.ProjectileLaunchEvent;
-import org.bukkit.event.player.PlayerInteractEvent;
+import org.bukkit.event.inventory.CraftItemEvent;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
-import org.bukkit.util.Transformation;
-import org.bukkit.util.Vector;
-import org.joml.AxisAngle4f;
-import org.joml.Vector3f;
 
 public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
@@ -43,10 +34,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         getLogger().info("HeavenlyTrident enabled!");
     }
 
-    // =========================================================
-    // КАСТОМНЫЙ ПРЕДМЕТ
-    // =========================================================
-
     public ItemStack createHeavenlyTrident() {
 
         ItemStack item = new ItemStack(Material.TRIDENT);
@@ -56,6 +43,10 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         meta.displayName(
                 net.kyori.adventure.text.Component.text("Небесный трезубец")
                         .color(net.kyori.adventure.text.format.NamedTextColor.AQUA)
+                        .decoration(
+                                net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                                false
+                        )
         );
 
         meta.getPersistentDataContainer().set(
@@ -64,7 +55,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 (byte) 1
         );
 
-        // Наша модель из ресурс-пака
         meta.setItemModel(
                 new NamespacedKey("breaksmp", "trident_staff")
         );
@@ -92,10 +82,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         );
     }
 
-    // =========================================================
-    // КРАФТ
-    // =========================================================
-
     private void registerRecipe() {
 
         ItemStack result = createHeavenlyTrident();
@@ -105,12 +91,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
         ShapedRecipe recipe =
                 new ShapedRecipe(recipeKey, result);
-
-        /*
-         * Маяк | Маяк | Маяк
-         * Алмазный блок | Трезубец | Алмазный блок
-         * Алмазный блок | Золотой блок | Алмазный блок
-         */
 
         recipe.shape(
                 "BBB",
@@ -126,18 +106,57 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         Bukkit.addRecipe(recipe);
     }
 
-    // =========================================================
-    // БРОСОК
-    // =========================================================
-
+    /*
+     * КРАФТ НЕБЕСНОГО ТРЕЗУБЦА
+     *
+     * При крафте показываем уведомление:
+     * "Это Бог?"
+     */
     @EventHandler
-    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+    public void onCraft(CraftItemEvent event) {
 
-        if (!(event.getEntity() instanceof org.bukkit.entity.Trident trident)) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
 
-        if (!(trident.getShooter() instanceof Player player)) {
+        ItemStack result = event.getRecipe().getResult();
+
+        if (!isHeavenlyTrident(result)) {
+            return;
+        }
+
+        Bukkit.getScheduler().runTask(
+                this,
+                () -> {
+
+                    player.sendTitle(
+                            "§b§lЭто Бог?",
+                            "§fСоздай Небесный трезубец",
+                            10,
+                            50,
+                            20
+                    );
+
+                    player.playSound(
+                            player.getLocation(),
+                            Sound.UI_TOAST_CHALLENGE_COMPLETE,
+                            1.0f,
+                            1.0f
+                    );
+                }
+        );
+    }
+
+    /*
+     * ПОПАДАНИЕ НЕБЕСНЫМ ТРЕЗУБЦОМ
+     *
+     * Обычный ванильный полёт трезубца.
+     * Кастомного ItemDisplay-полёта больше нет.
+     */
+    @EventHandler
+    public void onDamage(EntityDamageByEntityEvent event) {
+
+        if (!(event.getDamager() instanceof Trident trident)) {
             return;
         }
 
@@ -147,29 +166,14 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
             return;
         }
 
-        /*
-         * Отменяем настоящий vanilla-трезубец.
-         * Вместо него создаём наш ItemDisplay.
-         */
+        if (!(trident.getShooter() instanceof Player player)) {
+            return;
+        }
 
-        event.setCancelled(true);
+        // 15 урона
+        event.setDamage(15.0);
 
-        Location location = trident.getLocation();
-
-        Vector velocity = trident.getVelocity();
-
-        spawnCustomProjectile(player, location, velocity);
-    }
-
-    // =========================================================
-    // СОЗДАНИЕ ЛЕТЯЩЕЙ МОДЕЛИ
-    // =========================================================
-
-    private void spawnCustomProjectile(
-            Player player,
-            Location location,
-            Vector velocity
-    ) {
+        Location location = event.getEntity().getLocation();
 
         World world = location.getWorld();
 
@@ -177,233 +181,15 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
             return;
         }
 
-        ItemDisplay display =
-                (ItemDisplay) world.spawnEntity(
-                        location,
-                        EntityType.ITEM_DISPLAY
-                );
+        // Молния без дополнительного урона от самой молнии
+        world.strikeLightningEffect(location);
 
-        ItemStack displayItem = createHeavenlyTrident();
-
-        display.setItemStack(displayItem);
-
-        display.setBillboard(
-                org.bukkit.entity.Display.Billboard.FIXED
-        );
-
-        display.setInterpolationDuration(1);
-
-        display.setTeleportDuration(1);
-
-        /*
-         * Размер модели
-         */
-
-        Transformation transformation =
-                display.getTransformation();
-
-        transformation.getScale().set(
-                0.75f,
-                0.75f,
-                0.75f
-        );
-
-        display.setTransformation(transformation);
-
-        /*
-         * Запускаем собственную физику
-         */
-
-        final Vector currentVelocity =
-                velocity.clone();
-
-        final int[] ticks = {0};
-
-        Bukkit.getScheduler().runTaskTimer(
-                this,
-                task -> {
-
-                    if (!display.isValid()) {
-                        task.cancel();
-                        return;
-                    }
-
-                    ticks[0]++;
-
-                    Location oldLocation =
-                            display.getLocation();
-
-                    Location newLocation =
-                            oldLocation.clone().add(currentVelocity);
-
-                    /*
-                     * Проверяем столкновение
-                     */
-
-                    if (newLocation.getBlock().getType().isSolid()) {
-
-                        world.spawnParticle(
-                                Particle.ELECTRIC_SPARK,
-                                oldLocation,
-                                20,
-                                0.25,
-                                0.25,
-                                0.25,
-                                0.05
-                        );
-
-                        world.playSound(
-                                oldLocation,
-                                Sound.BLOCK_AMETHYST_BLOCK_HIT,
-                                1.0f,
-                                1.2f
-                        );
-
-                        display.remove();
-                        task.cancel();
-                        return;
-                    }
-
-                    /*
-                     * Проверяем игроков/мобов
-                     */
-
-                    for (Entity entity :
-                            world.getNearbyEntities(
-                                    newLocation,
-                                    0.7,
-                                    0.7,
-                                    0.7
-                            )) {
-
-                        if (entity == player) {
-                            continue;
-                        }
-
-                        if (entity instanceof ItemDisplay) {
-                            continue;
-                        }
-
-                        if (!entity.getType().isAlive()) {
-                            continue;
-                        }
-
-                        /*
-                         * Урон
-                         */
-
-                        if (entity instanceof org.bukkit.entity.Damageable damageable) {
-
-                            damageable.damage(
-                                    12.0,
-                                    player
-                            );
-
-                            world.spawnParticle(
-                                    Particle.CRIT,
-                                    newLocation,
-                                    15,
-                                    0.2,
-                                    0.2,
-                                    0.2,
-                                    0.1
-                            );
-
-                            world.playSound(
-                                    newLocation,
-                                    Sound.ITEM_TRIDENT_HIT,
-                                    1.0f,
-                                    1.0f
-                            );
-
-                            display.remove();
-                            task.cancel();
-                            return;
-                        }
-                    }
-
-                    /*
-                     * Перемещаем модель
-                     */
-
-                    display.teleport(newLocation);
-
-                    /*
-                     * Поворачиваем трезубец по направлению полёта
-                     */
-
-                    Vector direction =
-                            currentVelocity.clone().normalize();
-
-                    float yaw =
-                            (float) Math.atan2(
-                                    direction.getZ(),
-                                    direction.getX()
-                            );
-
-                    float pitch =
-                            (float) Math.asin(
-                                    direction.getY()
-                            );
-
-                    Transformation transform =
-                            display.getTransformation();
-
-                    transform.getLeftRotation().set(
-                            new AxisAngle4f(
-                                    -pitch,
-                                    0,
-                                    1,
-                                    0
-                            )
-                    );
-
-                    display.setTransformation(transform);
-
-                    /*
-                     * Гравитация
-                     */
-
-                    currentVelocity.setY(
-                            currentVelocity.getY() - 0.035
-                    );
-
-                    /*
-                     * Небольшое сопротивление воздуха
-                     */
-
-                    currentVelocity.multiply(0.99);
-
-                    /*
-                     * Частицы за трезубцем
-                     */
-
-                    if (ticks[0] % 2 == 0) {
-
-                        world.spawnParticle(
-                                Particle.END_ROD,
-                                newLocation,
-                                1,
-                                0,
-                                0,
-                                0,
-                                0
-                        );
-                    }
-
-                    /*
-                     * Максимальное время полёта
-                     */
-
-                    if (ticks[0] >= 200) {
-
-                        display.remove();
-                        task.cancel();
-                    }
-
-                },
-                1L,
-                1L
+        // Звук попадания
+        world.playSound(
+                location,
+                Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
+                1.0f,
+                1.2f
         );
     }
 }
