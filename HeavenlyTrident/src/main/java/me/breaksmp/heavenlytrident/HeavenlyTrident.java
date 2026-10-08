@@ -2,7 +2,8 @@ private void createFlyingModel(
         Trident trident
 ) {
 
-    World world = trident.getWorld();
+    World world =
+            trident.getWorld();
 
     ItemDisplay display =
             (ItemDisplay) world.spawnEntity(
@@ -24,6 +25,7 @@ private void createFlyingModel(
     /*
      * Размер модели
      */
+
     Transformation transformation =
             display.getTransformation();
 
@@ -43,9 +45,9 @@ private void createFlyingModel(
             task -> {
 
                 /*
-                 * Если настоящий трезубец исчез —
-                 * удаляем модель.
+                 * Настоящий трезубец исчез.
                  */
+
                 if (!trident.isValid()) {
 
                     display.remove();
@@ -55,17 +57,19 @@ private void createFlyingModel(
                 }
 
                 /*
-                 * Перемещаем модель за настоящим
-                 * трезубцем.
+                 * Позиция
                  */
+
                 Location location =
                         trident.getLocation();
 
                 display.teleport(location);
 
                 /*
-                 * Направление полёта
+                 * Получаем направление
+                 * самого трезубца.
                  */
+
                 Vector velocity =
                         trident.getVelocity();
 
@@ -75,33 +79,39 @@ private void createFlyingModel(
                             velocity.clone().normalize();
 
                     /*
-                     * ВАЖНО:
-                     *
-                     * Теперь считаем, что древко
-                     * модели направлено по Y.
-                     *
-                     * Поэтому поворачиваем
-                     * ось Y в направление полёта.
+                     * Получаем yaw и pitch
+                     * направления полёта.
                      */
-                    org.joml.Vector3f from =
-                            new org.joml.Vector3f(
-                                    0,
-                                    1,
-                                    0
+
+                    float yaw =
+                            (float) Math.toDegrees(
+                                    Math.atan2(
+                                            -direction.getX(),
+                                            direction.getZ()
+                                    )
                             );
 
-                    org.joml.Vector3f to =
-                            new org.joml.Vector3f(
-                                    (float) direction.getX(),
-                                    (float) direction.getY(),
-                                    (float) direction.getZ()
+                    float pitch =
+                            (float) Math.toDegrees(
+                                    Math.asin(
+                                            -direction.getY()
+                                    )
                             );
+
+                    /*
+                     * Создаём поворот.
+                     *
+                     * Minecraft-модель ItemDisplay
+                     * смотрит вперёд по -Z.
+                     */
 
                     org.joml.Quaternionf rotation =
                             new org.joml.Quaternionf()
-                                    .rotationTo(
-                                            from,
-                                            to
+                                    .rotateY(
+                                            (float) Math.toRadians(yaw)
+                                    )
+                                    .rotateX(
+                                            (float) Math.toRadians(pitch)
                                     );
 
                     Transformation transform =
