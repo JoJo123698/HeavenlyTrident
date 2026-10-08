@@ -7,6 +7,7 @@ import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
 import org.bukkit.entity.Entity;
+import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Trident;
@@ -30,29 +31,56 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
     @Override
     public void onEnable() {
 
-        tridentKey = new NamespacedKey(this, "heavenly_trident");
+        tridentKey = new NamespacedKey(
+                this,
+                "heavenly_trident"
+        );
 
-        Bukkit.getPluginManager().registerEvents(this, this);
+        Bukkit.getPluginManager().registerEvents(
+                this,
+                this
+        );
 
         registerRecipe();
 
-        getLogger().info("HeavenlyTrident enabled!");
+        getLogger().info(
+                "HeavenlyTrident enabled!"
+        );
     }
+
+    /*
+     * СОЗДАНИЕ НЕБЕСНОГО ТРЕЗУБЦА
+     */
 
     public ItemStack createHeavenlyTrident() {
 
-        ItemStack item = new ItemStack(Material.TRIDENT);
+        ItemStack item =
+                new ItemStack(Material.TRIDENT);
 
-        ItemMeta meta = item.getItemMeta();
+        ItemMeta meta =
+                item.getItemMeta();
+
+        if (meta == null) {
+            return item;
+        }
 
         meta.displayName(
-                net.kyori.adventure.text.Component.text("Небесный трезубец")
-                        .color(net.kyori.adventure.text.format.NamedTextColor.AQUA)
+                net.kyori.adventure.text.Component
+                        .text("Небесный трезубец")
+                        .color(
+                                net.kyori.adventure.text.format
+                                        .NamedTextColor.AQUA
+                        )
                         .decoration(
-                                net.kyori.adventure.text.format.TextDecoration.ITALIC,
+                                net.kyori.adventure.text.format
+                                        .TextDecoration.ITALIC,
                                 false
                         )
         );
+
+        /*
+         * Метка нашего трезубца
+         */
 
         meta.getPersistentDataContainer().set(
                 tridentKey,
@@ -60,8 +88,15 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 (byte) 1
         );
 
+        /*
+         * Кастомная 3D модель
+         */
+
         meta.setItemModel(
-                new NamespacedKey("breaksmp", "trident_staff")
+                new NamespacedKey(
+                        "breaksmp",
+                        "trident_staff"
+                )
         );
 
         item.setItemMeta(meta);
@@ -69,33 +104,61 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         return item;
     }
 
-    private boolean isHeavenlyTrident(ItemStack item) {
+    /*
+     * ПРОВЕРКА:
+     * ЯВЛЯЕТСЯ ЛИ ПРЕДМЕТ НЕБЕСНЫМ ТРЕЗУБЦЕМ
+     */
 
-        if (item == null || item.getType() != Material.TRIDENT) {
+    private boolean isHeavenlyTrident(
+            ItemStack item
+    ) {
+
+        if (
+                item == null ||
+                item.getType() != Material.TRIDENT
+        ) {
             return false;
         }
 
-        ItemMeta meta = item.getItemMeta();
+        ItemMeta meta =
+                item.getItemMeta();
 
         if (meta == null) {
             return false;
         }
 
-        return meta.getPersistentDataContainer().has(
-                tridentKey,
-                PersistentDataType.BYTE
-        );
+        return meta
+                .getPersistentDataContainer()
+                .has(
+                        tridentKey,
+                        PersistentDataType.BYTE
+                );
     }
+
+    /*
+     * РЕЦЕПТ
+     *
+     * BBB
+     * DTD
+     * DGD
+     */
 
     private void registerRecipe() {
 
-        ItemStack result = createHeavenlyTrident();
+        ItemStack result =
+                createHeavenlyTrident();
 
         NamespacedKey recipeKey =
-                new NamespacedKey(this, "heavenly_trident_recipe");
+                new NamespacedKey(
+                        this,
+                        "heavenly_trident_recipe"
+                );
 
         ShapedRecipe recipe =
-                new ShapedRecipe(recipeKey, result);
+                new ShapedRecipe(
+                        recipeKey,
+                        result
+                );
 
         recipe.shape(
                 "BBB",
@@ -103,28 +166,53 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 "DGD"
         );
 
-        recipe.setIngredient('B', Material.BEACON);
-        recipe.setIngredient('D', Material.DIAMOND_BLOCK);
-        recipe.setIngredient('T', Material.TRIDENT);
-        recipe.setIngredient('G', Material.GOLD_BLOCK);
+        recipe.setIngredient(
+                'B',
+                Material.BEACON
+        );
+
+        recipe.setIngredient(
+                'D',
+                Material.DIAMOND_BLOCK
+        );
+
+        recipe.setIngredient(
+                'T',
+                Material.TRIDENT
+        );
+
+        recipe.setIngredient(
+                'G',
+                Material.GOLD_BLOCK
+        );
 
         Bukkit.addRecipe(recipe);
     }
 
     /*
-     * ДОСТИЖЕНИЕ
+     * КРАФТ
+     *
+     * "Это Бог?"
      */
 
     @EventHandler
-    public void onCraft(CraftItemEvent event) {
+    public void onCraft(
+            CraftItemEvent event
+    ) {
 
-        if (!(event.getWhoClicked() instanceof Player player)) {
+        if (
+                !(event.getWhoClicked()
+                        instanceof Player player)
+        ) {
             return;
         }
 
-        ItemStack result = event.getRecipe().getResult();
+        ItemStack result =
+                event.getRecipe().getResult();
 
-        if (!isHeavenlyTrident(result)) {
+        if (
+                !isHeavenlyTrident(result)
+        ) {
             return;
         }
 
@@ -151,47 +239,89 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
     }
 
     /*
-     * ЗАПУСК ТРЕЗУБЦА
-     *
-     * Обычный ванильный трезубец продолжает
-     * лететь самостоятельно.
-     *
-     * Мы только создаём визуальную модель,
-     * которая следует за ним.
+     * БРОСОК ТРЕЗУБЦА
      */
 
     @EventHandler
-    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+    public void onProjectileLaunch(
+            ProjectileLaunchEvent event
+    ) {
 
-        if (!(event.getEntity() instanceof Trident trident)) {
+        if (
+                !(event.getEntity()
+                        instanceof Trident trident)
+        ) {
             return;
         }
 
-        if (!(trident.getShooter() instanceof Player player)) {
+        if (
+                !(trident.getShooter()
+                        instanceof Player player)
+        ) {
             return;
         }
 
-        if (!isHeavenlyTrident(trident.getItemStack())) {
+        /*
+         * Проверяем, что это именно
+         * Небесный трезубец.
+         */
+
+        if (
+                !isHeavenlyTrident(
+                        trident.getItemStack()
+                )
+        ) {
             return;
         }
 
-        createFlyingModel(trident, player);
+        /*
+         * Создаём визуальную модель.
+         */
+
+        createFlyingModel(
+                trident,
+                player
+        );
     }
+
+    /*
+     * КАСТОМНАЯ МОДЕЛЬ В ПОЛЁТЕ
+     */
 
     private void createFlyingModel(
             Trident trident,
             Player player
     ) {
 
-        World world = trident.getWorld();
+        World world =
+                trident.getWorld();
+
+        /*
+         * Прячем настоящий трезубец.
+         *
+         * Он всё ещё существует,
+         * летит и регистрирует попадания.
+         */
+
+        trident.setInvisible(true);
+
+        /*
+         * Создаём ItemDisplay
+         */
 
         ItemDisplay display =
                 (ItemDisplay) world.spawnEntity(
                         trident.getLocation(),
-                        org.bukkit.entity.EntityType.ITEM_DISPLAY
+                        EntityType.ITEM_DISPLAY
                 );
 
-        display.setItemStack(createHeavenlyTrident());
+        /*
+         * Даём ему нашу модель
+         */
+
+        display.setItemStack(
+                createHeavenlyTrident()
+        );
 
         display.setBillboard(
                 org.bukkit.entity.Display.Billboard.FIXED
@@ -199,6 +329,10 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
         display.setInterpolationDuration(1);
         display.setTeleportDuration(1);
+
+        /*
+         * Размер модели
+         */
 
         Transformation transformation =
                 display.getTransformation();
@@ -209,95 +343,173 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 0.75f
         );
 
-        display.setTransformation(transformation);
+        display.setTransformation(
+                transformation
+        );
+
+        /*
+         * Следим за настоящим трезубцем.
+         */
 
         Bukkit.getScheduler().runTaskTimer(
                 this,
+
                 task -> {
 
-                    if (!trident.isValid()) {
+                    /*
+                     * Трезубец исчез / застрял /
+                     * был удалён.
+                     */
+
+                    if (
+                            !trident.isValid()
+                    ) {
+
                         display.remove();
+
                         task.cancel();
+
                         return;
                     }
 
-                    if (!display.isValid()) {
+                    /*
+                     * Защита от удаления модели.
+                     */
+
+                    if (
+                            !display.isValid()
+                    ) {
+
                         task.cancel();
+
                         return;
                     }
 
                     Location location =
                             trident.getLocation();
 
-                    display.teleport(location);
+                    /*
+                     * Перемещаем модель
+                     * на позицию трезубца.
+                     */
+
+                    display.teleport(
+                            location
+                    );
 
                     /*
-                     * Поворачиваем модель по направлению
-                     * настоящего трезубца.
+                     * Направление полёта
                      */
 
                     Vector velocity =
                             trident.getVelocity();
 
-                    if (velocity.lengthSquared() > 0.001) {
+                    if (
+                            velocity.lengthSquared()
+                                    > 0.001
+                    ) {
 
                         Vector direction =
-                                velocity.clone().normalize();
+                                velocity.clone()
+                                        .normalize();
 
-                        float yaw =
-                                (float) Math.toDegrees(
-                                        Math.atan2(
-                                                -direction.getX(),
+                        /*
+                         * Наша модель вытянута
+                         * вдоль X.
+                         *
+                         * Поэтому направляем
+                         * ось X по траектории.
+                         */
+
+                        org.joml.Vector3f from =
+                                new org.joml.Vector3f(
+                                        1,
+                                        0,
+                                        0
+                                );
+
+                        org.joml.Vector3f to =
+                                new org.joml.Vector3f(
+                                        (float)
+                                                direction.getX(),
+                                        (float)
+                                                direction.getY(),
+                                        (float)
                                                 direction.getZ()
-                                        )
                                 );
 
-                        float pitch =
-                                (float) Math.toDegrees(
-                                        Math.asin(
-                                                -direction.getY()
-                                        )
-                                );
+                        org.joml.Quaternionf rotation =
+                                new org.joml.Quaternionf()
+                                        .rotationTo(
+                                                from,
+                                                to
+                                        );
 
-                        Location rotation =
-                                location.clone();
+                        Transformation transform =
+                                display.getTransformation();
 
-                        rotation.setYaw(yaw);
-                        rotation.setPitch(pitch);
+                        transform
+                                .getLeftRotation()
+                                .set(rotation);
 
-                        display.teleport(rotation);
+                        display.setTransformation(
+                                transform
+                        );
                     }
 
                 },
+
                 1L,
                 1L
         );
     }
 
     /*
-     * УРОН + МОЛНИЯ
+     * ПОПАДАНИЕ
+     *
+     * 15 УРОНА + МОЛНИЯ
      */
 
     @EventHandler
-    public void onDamage(EntityDamageByEntityEvent event) {
+    public void onDamage(
+            EntityDamageByEntityEvent event
+    ) {
 
-        if (!(event.getDamager() instanceof Trident trident)) {
+        if (
+                !(event.getDamager()
+                        instanceof Trident trident)
+        ) {
             return;
         }
 
-        if (!isHeavenlyTrident(trident.getItemStack())) {
+        /*
+         * Только Небесный трезубец
+         */
+
+        if (
+                !isHeavenlyTrident(
+                        trident.getItemStack()
+                )
+        ) {
             return;
         }
 
-        if (!(trident.getShooter() instanceof Player player)) {
+        if (
+                !(trident.getShooter()
+                        instanceof Player player)
+        ) {
             return;
         }
 
-        // 15 урона
+        /*
+         * 15 УРОНА
+         */
+
         event.setDamage(15.0);
 
         Location location =
-                event.getEntity().getLocation();
+                event.getEntity()
+                        .getLocation();
 
         World world =
                 location.getWorld();
@@ -306,8 +518,22 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
             return;
         }
 
-        // Визуальная молния
-        world.strikeLightningEffect(location);
+        /*
+         * МОЛНИЯ
+         *
+         * strikeLightningEffect
+         * показывает молнию,
+         * но сама молния не наносит
+         * дополнительный урон.
+         */
+
+        world.strikeLightningEffect(
+                location
+        );
+
+        /*
+         * Звук грома
+         */
 
         world.playSound(
                 location,
