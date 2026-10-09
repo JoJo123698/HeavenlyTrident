@@ -444,19 +444,27 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
      */
 
     
+
 @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
 public void onDamage(EntityDamageByEntityEvent event) {
-    if (!(event.getDamager() instanceof Trident trident)) return;
-    if (!isHeavenlyTrident(trident.getItemStack())) return;
-    if (!(trident.getShooter() instanceof Player)) return;
+    if (!(event.getDamager() instanceof Trident trident)) {
+        return;
+    }
+
+    if (!isHeavenlyTrident(trident.getItemStack())) {
+        return;
+    }
+
+    if (!(trident.getShooter() instanceof Player)) {
+        return;
+    }
 
     // Отменяем обычный урон трезубца
     event.setCancelled(true);
 
     Entity target = event.getEntity();
 
-    // Снимаем ровно 15 единиц здоровья напрямую,
-    // игнорируя броню и зачарование "Защита".
+    // Ровно 15 урона напрямую, минуя броню
     if (target instanceof org.bukkit.entity.Damageable damageable) {
         double health = damageable.getHealth();
         damageable.setHealth(Math.max(0.0, health - 15.0));
@@ -468,10 +476,10 @@ public void onDamage(EntityDamageByEntityEvent event) {
     if (world != null) {
         world.strikeLightningEffect(location);
         world.playSound(
-            location,
-            Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
-            1.0f,
-            1.2f
+                location,
+                Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
+                1.0f,
+                1.2f
         );
     }
 }
