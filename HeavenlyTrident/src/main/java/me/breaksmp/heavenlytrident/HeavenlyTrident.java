@@ -443,49 +443,38 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
      * УРОН + МОЛНИЯ
      */
 
-    @EventHandler
-    public void onDamage(
-            EntityDamageByEntityEvent event
-    ) {
+    
+@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+public void onDamage(EntityDamageByEntityEvent event) {
+    if (!(event.getDamager() instanceof Trident trident)) return;
+    if (!isHeavenlyTrident(trident.getItemStack())) return;
+    if (!(trident.getShooter() instanceof Player)) return;
 
-        if (
-                !(event.getDamager()
-                        instanceof Trident trident)
-        ) {
-            return;
-        }
+    // Отменяем обычный урон трезубца
+    event.setCancelled(true);
 
-        if (
-                !isHeavenlyTrident(
-                        trident.getItemStack()
-                )
-        ) {
-            return;
-        }
+    Entity target = event.getEntity();
 
-        if (
-                !(trident.getShooter()
-                        instanceof Player player)
-        ) {
-            return;
-        }
+    // Снимаем ровно 15 единиц здоровья напрямую,
+    // игнорируя броню и зачарование "Защита".
+    if (target instanceof org.bukkit.entity.Damageable damageable) {
+        double health = damageable.getHealth();
+        damageable.setHealth(Math.max(0.0, health - 15.0));
+    }
 
-        /*
-         * 15 УРОНА
-         */
+    Location location = target.getLocation();
+    World world = location.getWorld();
 
-        event.setDamage(15.0);
-
-        Location location =
-                event.getEntity()
-                        .getLocation();
-
-        World world =
-                location.getWorld();
-
-        if (world == null) {
-            return;
-        }
+    if (world != null) {
+        world.strikeLightningEffect(location);
+        world.playSound(
+            location,
+            Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
+            1.0f,
+            1.2f
+        );
+    }
+}
 
         /*
          * МОЛНИЯ БЕЗ ДОПОЛНИТЕЛЬНОГО УРОНА
