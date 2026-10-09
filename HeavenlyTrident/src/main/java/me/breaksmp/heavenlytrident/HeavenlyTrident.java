@@ -1,3 +1,4 @@
+
 package me.breaksmp.heavenlytrident;
 
 import org.bukkit.Bukkit;
@@ -65,7 +66,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         projectiles.clear();
     }
 
-    // Создание предмета
     public ItemStack createHeavenlyTrident() {
         ItemStack item = new ItemStack(Material.TRIDENT);
         ItemMeta meta = item.getItemMeta();
@@ -93,7 +93,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         return item;
     }
 
-    // Проверка, является ли предмет нашим трезубцем
     private boolean isHeavenlyTrident(ItemStack item) {
         if (item == null || item.getType() != Material.TRIDENT) {
             return false;
@@ -108,7 +107,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         );
     }
 
-    // Рецепт крафта
     private void createRecipe() {
         Bukkit.removeRecipe(recipeKey);
 
@@ -131,7 +129,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         Bukkit.addRecipe(recipe);
     }
 
-    // Эффект при создании трезубца
     @EventHandler
     public void onCraft(CraftItemEvent event) {
         if (!isHeavenlyTrident(event.getCurrentItem())) {
@@ -156,7 +153,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         }
     }
 
-    // Настоящий снаряд сохраняет физику Minecraft
     @EventHandler
     public void onTridentThrow(ProjectileLaunchEvent event) {
         if (!(event.getEntity() instanceof Trident trident)) {
@@ -168,15 +164,12 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         }
 
         UUID id = trident.getUniqueId();
-
         projectiles.put(id, trident);
 
-        // Прячем обычную модель снаряда у всех игроков
         for (Player player : Bukkit.getOnlinePlayers()) {
             player.hideEntity(this, trident);
         }
 
-        // Создаём вместо неё нашу модель
         ItemDisplay display = trident.getWorld().spawn(
                 trident.getLocation(),
                 ItemDisplay.class
@@ -190,11 +183,14 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
         displays.put(id, display);
 
-        // Сразу выставляем правильное направление
         rotateDisplayToVelocity(trident, display);
     }
 
-    // Поворачиваем 3D-модель по направлению полёта
+    /*
+     * Направляем модель по скорости настоящего трезубца.
+     * Исходная ось +Y выбрана потому, что модель сейчас
+     * смотрит вертикально вверх.
+     */
     private void rotateDisplayToVelocity(
             Trident trident,
             ItemDisplay display
@@ -205,21 +201,32 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         double dy = velocity.getY();
         double dz = velocity.getZ();
 
-        double length = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        double horizontalDistance = Math.sqrt(dx * dx + dz * dz);
+        double length = Math.sqrt(
+                dx * dx + dy * dy + dz * dz
+        );
 
         if (length < 0.0001) {
             return;
         }
 
-        // Направление полёта, нормализованное до длины 1
+        // Углы движения по логике ванильного Minecraft
+        float targetYaw = (float) Math.toDegrees(
+                Math.atan2(dx, dz)
+        );
+
+        float targetPitch = (float) Math.toDegrees(
+                Math.atan2(dy, horizontalDistance)
+        );
+
+        // Нормализованный вектор движения
         float dirX = (float) (dx / length);
         float dirY = (float) (dy / length);
         float dirZ = (float) (dz / length);
 
-        // Считаем поворот: локальная ось +Z модели
-        // направляется точно по вектору движения снаряда
+        // Поворот исходной оси модели +Y к направлению полёта
         Quaternionf rotation = new Quaternionf().rotationTo(
-                0.0f, 0.0f, 1.0f,
+                0.0f, 1.0f, 0.0f,
                 dirX, dirY, dirZ
         );
 
@@ -231,7 +238,6 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         ));
     }
 
-    // Обновляем позицию и направление модели каждый тик
     private void startProjectileTask() {
         new BukkitRunnable() {
             @Override
@@ -255,18 +261,13 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                         continue;
                     }
 
-                    // Переносим модель в положение снаряда
-                    Location location = trident.getLocation();
-                    display.teleport(location);
-
-                    // Поворачиваем модель вслед за траекторией
+                    display.teleport(trident.getLocation());
                     rotateDisplayToVelocity(trident, display);
                 }
             }
         }.runTaskTimer(this, 1L, 1L);
     }
 
-    // Прячем обычную модель и у игроков, которые вошли позже
     @EventHandler
     public void onJoin(PlayerJoinEvent event) {
         Player player = event.getPlayer();
@@ -278,8 +279,10 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
         }
     }
 
-    // Урон 15 с обычным учётом брони и зачарований
-    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    @EventHandler(
+            priority = EventPriority.HIGHEST,
+            ignoreCancelled = true
+    )
     public void onDamage(EntityDamageByEntityEvent event) {
         if (!(event.getDamager() instanceof Trident trident)) {
             return;
@@ -293,6 +296,7 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
             return;
         }
 
+        // 15 единиц базового урона, броня учитывается
         event.setDamage(15.0);
 
         Location location = event.getEntity().getLocation();
