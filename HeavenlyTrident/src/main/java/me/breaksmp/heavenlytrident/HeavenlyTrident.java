@@ -1,3 +1,4 @@
+
 package me.breaksmp.heavenlytrident;
 
 import org.bukkit.Bukkit;
@@ -6,11 +7,13 @@ import org.bukkit.Material;
 import org.bukkit.NamespacedKey;
 import org.bukkit.Sound;
 import org.bukkit.World;
+import org.bukkit.entity.Entity;
 import org.bukkit.entity.EntityType;
 import org.bukkit.entity.ItemDisplay;
 import org.bukkit.entity.Player;
 import org.bukkit.entity.Trident;
 import org.bukkit.event.EventHandler;
+import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.entity.EntityDamageByEntityEvent;
 import org.bukkit.event.entity.ProjectileLaunchEvent;
@@ -21,62 +24,63 @@ import org.bukkit.inventory.ShapedRecipe;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.persistence.PersistentDataType;
 import org.bukkit.plugin.java.JavaPlugin;
+import org.bukkit.scheduler.BukkitRunnable;
 import org.bukkit.util.Transformation;
 import org.bukkit.util.Vector;
+import org.joml.Quaternionf;
+import org.joml.Vector3f;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 public final class HeavenlyTrident extends JavaPlugin implements Listener {
 
     private NamespacedKey tridentKey;
+    private NamespacedKey recipeKey;
+
+    private final Map<UUID, ItemDisplay> displays = new HashMap<>();
+    private final Map<UUID, Trident> projectiles = new HashMap<>();
 
     @Override
     public void onEnable() {
+        tridentKey = new NamespacedKey(this, "heavenly_trident");
+        recipeKey = new NamespacedKey(this, "heavenly_trident_recipe");
 
-        tridentKey = new NamespacedKey(
-                this,
-                "heavenly_trident"
-        );
+        Bukkit.getPluginManager().registerEvents(this, this);
+        createRecipe();
 
-        Bukkit.getPluginManager().registerEvents(
-                this,
-                this
-        );
-
-        registerRecipe();
-
-        getLogger().info(
-                "HeavenlyTrident enabled!"
-        );
+        getLogger().info("HeavenlyTrident enabled!");
     }
 
-    /*
-     * СОЗДАНИЕ НЕБЕСНОГО ТРЕЗУБЦА
-     */
+    @Override
+    public void onDisable() {
+        for (ItemDisplay display : displays.values()) {
+            if (display != null && display.isValid()) {
+                display.remove();
+            }
+        }
 
-    public ItemStack createHeavenlyTrident() {
+        displays.clear();
+        projectiles.clear();
+    }
 
-        ItemStack item =
-                new ItemStack(Material.TRIDENT);
-
-        ItemMeta meta =
-                item.getItemMeta();
+    private ItemStack createHeavenlyTrident() {
+        ItemStack item = new ItemStack(Material.TRIDENT);
+        ItemMeta meta = item.getItemMeta();
 
         if (meta == null) {
             return item;
         }
 
-        meta.displayName(
-                net.kyori.adventure.text.Component
-                        .text("Небесный трезубец")
-                        .color(
-                                net.kyori.adventure.text.format
-                                        .NamedTextColor.AQUA
-                        )
-                        .decoration(
-                                net.kyori.adventure.text.format
-                                        .TextDecoration.ITALIC,
-                                false
-                        )
-        );
+        meta.setDisplayName("§bНебесный трезубец");
+        meta.setItemModel(new NamespacedKey("breaksmp", "trident_staff"));
+        meta.setLore(List.of(
+                "§7Оружие небес",
+                "§cБазовый урон: 15",
+                "§eМолния при попадании"
+        ));
 
         meta.getPersistentDataContainer().set(
                 tridentKey,
@@ -84,72 +88,36 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 (byte) 1
         );
 
-        meta.setItemModel(
-                new NamespacedKey(
-                        "breaksmp",
-                        "trident_staff"
-                )
-        );
-
         item.setItemMeta(meta);
-
         return item;
     }
 
-    /*
-     * ПРОВЕРКА НА НЕБЕСНЫЙ ТРЕЗУБЕЦ
-     */
-
-    private boolean isHeavenlyTrident(
-            ItemStack item
-    ) {
-
-        if (
-                item == null ||
-                item.getType() != Material.TRIDENT
-        ) {
+    private boolean isHeavenlyTrident(ItemStack item) {
+        if (item == null || item.getType() != Material.TRIDENT) {
             return false;
         }
 
-        ItemMeta meta =
-                item.getItemMeta();
+        ItemMeta meta = item.getItemMeta();
 
         if (meta == null) {
             return false;
         }
 
-        return meta
-                .getPersistentDataContainer()
-                .has(
-                        tridentKey,
-                        PersistentDataType.BYTE
-                );
+        Byte value = meta.getPersistentDataContainer().get(
+                tridentKey,
+                PersistentDataType.BYTE
+        );
+
+        return value != null && value == (byte) 1;
     }
 
-    /*
-     * РЕЦЕПТ
-     *
-     * BBB
-     * DTD
-     * DGD
-     */
+    private void createRecipe() {
+        Bukkit.removeRecipe(recipeKey);
 
-    private void registerRecipe() {
-
-        ItemStack result =
-                createHeavenlyTrident();
-
-        NamespacedKey recipeKey =
-                new NamespacedKey(
-                        this,
-                        "heavenly_trident_recipe"
-                );
-
-        ShapedRecipe recipe =
-                new ShapedRecipe(
-                        recipeKey,
-                        result
-                );
+        ShapedRecipe recipe = new ShapedRecipe(
+                recipeKey,
+                createHeavenlyTrident()
+        );
 
         recipe.shape(
                 "BBB",
@@ -157,378 +125,152 @@ public final class HeavenlyTrident extends JavaPlugin implements Listener {
                 "DGD"
         );
 
-        recipe.setIngredient(
-                'B',
-                Material.BEACON
-        );
-
-        recipe.setIngredient(
-                'D',
-                Material.DIAMOND_BLOCK
-        );
-
-        recipe.setIngredient(
-                'T',
-                Material.TRIDENT
-        );
-
-        recipe.setIngredient(
-                'G',
-                Material.GOLD_BLOCK
-        );
+        recipe.setIngredient('B', Material.BEACON);
+        recipe.setIngredient('D', Material.DIAMOND_BLOCK);
+        recipe.setIngredient('T', Material.TRIDENT);
+        recipe.setIngredient('G', Material.GOLD_BLOCK);
 
         Bukkit.addRecipe(recipe);
     }
 
-    /*
-     * КРАФТ
-     *
-     * "Это Бог?"
-     */
-
     @EventHandler
-    public void onCraft(
-            CraftItemEvent event
-    ) {
-
-        if (
-                !(event.getWhoClicked()
-                        instanceof Player player)
-        ) {
+    public void onCraft(CraftItemEvent event) {
+        if (!(event.getWhoClicked() instanceof Player player)) {
             return;
         }
 
-        ItemStack result =
-                event.getRecipe().getResult();
-
-        if (
-                !isHeavenlyTrident(result)
-        ) {
+        if (!isHeavenlyTrident(event.getCurrentItem())) {
             return;
         }
 
-        Bukkit.getScheduler().runTask(
-                this,
-                () -> {
+        player.sendTitle(
+                "§bЭто Бог?",
+                "§fНебесный трезубец создан!",
+                10,
+                50,
+                20
+        );
 
-                    player.sendTitle(
-                            "§b§lЭто Бог?",
-                            "§fСоздай Небесный трезубец",
-                            10,
-                            50,
-                            20
-                    );
-
-                    player.playSound(
-                            player.getLocation(),
-                            Sound.UI_TOAST_CHALLENGE_COMPLETE,
-                            1.0f,
-                            1.0f
-                    );
-                }
+        player.playSound(
+                player.getLocation(),
+                Sound.UI_TOAST_CHALLENGE_COMPLETE,
+                1.0f,
+                1.0f
         );
     }
 
-    /*
-     * БРОСОК
-     */
-
-    @EventHandler
-    public void onProjectileLaunch(
-            ProjectileLaunchEvent event
-    ) {
-
-        if (
-                !(event.getEntity()
-                        instanceof Trident trident)
-        ) {
+    @EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
+    public void onDamage(EntityDamageByEntityEvent event) {
+        if (!(event.getDamager() instanceof Trident trident)) {
             return;
         }
 
-        if (
-                !(trident.getShooter()
-                        instanceof Player player)
-        ) {
+        if (!isHeavenlyTrident(trident.getItemStack())) {
             return;
         }
 
-        if (
-                !isHeavenlyTrident(
-                        trident.getItemStack()
-                )
-        ) {
+        if (!(trident.getShooter() instanceof Player)) {
             return;
         }
 
-        /*
-         * Скрываем настоящий
-         * ванильный трезубец.
-         */
+        // Базовый урон 15; броня и зачарования работают обычно.
+        event.setDamage(15.0);
 
-        for (Player onlinePlayer :
-                Bukkit.getOnlinePlayers()) {
+        Location location = event.getEntity().getLocation();
+        World world = location.getWorld();
 
-            onlinePlayer.hideEntity(
-                    this,
-                    trident
+        if (world != null) {
+            world.strikeLightningEffect(location);
+            world.playSound(
+                    location,
+                    Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
+                    1.0f,
+                    1.2f
             );
         }
-
-        /*
-         * Создаём нашу модель.
-         */
-
-        createFlyingModel(
-                trident
-        );
     }
 
-    /*
-     * КАСТОМНАЯ 3D МОДЕЛЬ В ПОЛЁТЕ
-     */
+    @EventHandler
+    public void onProjectileLaunch(ProjectileLaunchEvent event) {
+        if (!(event.getEntity() instanceof Trident trident)) {
+            return;
+        }
 
-    private void createFlyingModel(
-            Trident trident
-    ) {
+        if (!(trident.getShooter() instanceof Player)) {
+            return;
+        }
 
-        World world =
-                trident.getWorld();
+        if (!isHeavenlyTrident(trident.getItemStack())) {
+            return;
+        }
 
-        ItemDisplay display =
-                (ItemDisplay) world.spawnEntity(
-                        trident.getLocation(),
-                        EntityType.ITEM_DISPLAY
-                );
+        UUID id = trident.getUniqueId();
 
-        display.setItemStack(
-                createHeavenlyTrident()
+        // Скрываем ванильную модель у всех игроков.
+        for (Player viewer : Bukkit.getOnlinePlayers()) {
+            viewer.hideEntity(this, trident);
+        }
+
+        projectiles.put(id, trident);
+
+        ItemDisplay display = (ItemDisplay) trident.getWorld().spawnEntity(
+                trident.getLocation(),
+                EntityType.ITEM_DISPLAY
         );
 
-        display.setBillboard(
-                org.bukkit.entity.Display.Billboard.FIXED
-        );
-
+        display.setItemStack(createHeavenlyTrident());
+        display.setPersistent(false);
         display.setInterpolationDuration(1);
         display.setTeleportDuration(1);
 
-        /*
-         * Размер модели
-         */
+        displays.put(id, display);
 
-        Transformation transformation =
-                display.getTransformation();
+        new BukkitRunnable() {
+            @Override
+            public void run() {
+                if (!trident.isValid() || trident.isDead()
+                        || !display.isValid()) {
+                    display.remove();
+                    displays.remove(id);
+                    projectiles.remove(id);
+                    cancel();
+                    return;
+                }
 
-        transformation.getScale().set(
-                0.75f,
-                0.75f,
-                0.75f
-        );
+                Location location = trident.getLocation();
+                Vector velocity = trident.getVelocity();
 
-        display.setTransformation(
-                transformation
-        );
+                if (velocity.lengthSquared() > 0.0001) {
+                    Vector direction = velocity.clone().normalize();
 
-        Bukkit.getScheduler().runTaskTimer(
-                this,
-
-                task -> {
-
-                    /*
-                     * Настоящий трезубец исчез.
-                     */
-
-                    if (
-                            !trident.isValid()
-                    ) {
-
-                        display.remove();
-
-                        task.cancel();
-
-                        return;
-                    }
-
-                    /*
-                     * Позиция модели
-                     */
-
-                    Location location =
-                            trident.getLocation();
-
-                    display.teleport(
-                            location
+                    // Предполагается, что острие модели направлено по +Y.
+                    Quaternionf rotation = new Quaternionf().rotationTo(
+                            0.0f, 1.0f, 0.0f,
+                            (float) direction.getX(),
+                            (float) direction.getY(),
+                            (float) direction.getZ()
                     );
 
-                    /*
-                     * Направление полёта
-                     */
+                    display.setTransformation(new Transformation(
+                            new Vector3f(0.0f, 0.0f, 0.0f),
+                            rotation,
+                            new Vector3f(1.0f, 1.0f, 1.0f),
+                            new Quaternionf()
+                    ));
+                }
 
-                    Vector velocity =
-                            trident.getVelocity();
-
-                    if (
-                            velocity.lengthSquared()
-                                    > 0.001
-                    ) {
-
-                        Vector direction =
-                                velocity.clone()
-                                        .normalize();
-
-                        /*
-                         * Вычисляем направление
-                         * по горизонтали.
-                         */
-
-                        float yaw =
-                                (float) Math.toDegrees(
-                                        Math.atan2(
-                                                -direction.getX(),
-                                                direction.getZ()
-                                        )
-                                );
-
-                        /*
-                         * Вычисляем вертикальный
-                         * наклон.
-                         */
-
-                        float pitch =
-                                (float) Math.toDegrees(
-                                        Math.asin(
-                                                -direction.getY()
-                                        )
-                                );
-
-                        /*
-                         * Поворот модели.
-                         *
-                         * ItemDisplay использует
-                         * направление -Z.
-                         */
-
-                        org.joml.Quaternionf rotation =
-                                new org.joml.Quaternionf()
-                                        .rotateY(
-                                                (float) Math.toRadians(
-                                                        yaw
-                                                )
-                                        )
-                                        .rotateX(
-                                                (float) Math.toRadians(
-                                                        pitch
-                                                )
-                                        );
-
-                        Transformation transform =
-                                display.getTransformation();
-
-                        transform
-                                .getLeftRotation()
-                                .set(rotation);
-
-                        display.setTransformation(
-                                transform
-                        );
-                    }
-
-                },
-
-                1L,
-                1L
-        );
+                display.teleport(location);
+            }
+        }.runTaskTimer(this, 1L, 1L);
     }
-
-    /*
-     * УРОН + МОЛНИЯ
-     */
-
-    
-
-@EventHandler(priority = EventPriority.HIGHEST, ignoreCancelled = true)
-public void onDamage(EntityDamageByEntityEvent event) {
-    if (!(event.getDamager() instanceof Trident trident)) {
-        return;
-    }
-
-    if (!isHeavenlyTrident(trident.getItemStack())) {
-        return;
-    }
-
-    if (!(trident.getShooter() instanceof Player)) {
-        return;
-    }
-
-    // Отменяем обычный урон трезубца
-    event.setCancelled(true);
-
-    Entity target = event.getEntity();
-
-    // Ровно 15 урона напрямую, минуя броню
-    if (target instanceof org.bukkit.entity.Damageable damageable) {
-        double health = damageable.getHealth();
-        damageable.setHealth(Math.max(0.0, health - 15.0));
-    }
-
-    Location location = target.getLocation();
-    World world = location.getWorld();
-
-    if (world != null) {
-        world.strikeLightningEffect(location);
-        world.playSound(
-                location,
-                Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
-                1.0f,
-                1.2f
-        );
-    }
-}
-
-        /*
-         * МОЛНИЯ БЕЗ ДОПОЛНИТЕЛЬНОГО УРОНА
-         */
-
-        world.strikeLightningEffect(
-                location
-        );
-
-        world.playSound(
-                location,
-                Sound.ENTITY_LIGHTNING_BOLT_THUNDER,
-                1.0f,
-                1.2f
-        );
-    }
-
-    /*
-     * ЕСЛИ ИГРОК ЗАЙДЁТ ВО ВРЕМЯ ПОЛЁТА,
-     * СКРЫВАЕМ ОТ НЕГО ТРЕЗУБЕЦ.
-     */
 
     @EventHandler
-    public void onJoin(
-            PlayerJoinEvent event
-    ) {
+    public void onJoin(PlayerJoinEvent event) {
+        Player player = event.getPlayer();
 
-        Player player =
-                event.getPlayer();
-
-        for (org.bukkit.entity.Entity entity :
-                player.getWorld().getEntitiesByClass(
-                        Trident.class
-                )) {
-
-            if (
-                    entity instanceof Trident trident &&
-                    isHeavenlyTrident(
-                            trident.getItemStack()
-                    )
-            ) {
-
-                player.hideEntity(
-                        this,
-                        trident
-                );
+        for (Trident trident : projectiles.values()) {
+            if (trident != null && trident.isValid()) {
+                player.hideEntity(this, trident);
             }
         }
     }
